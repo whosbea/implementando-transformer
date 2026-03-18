@@ -6,7 +6,7 @@ np.random.seed(SEED)
 
 # Dimensões do modelo
 D_MODEL = 128
-D_K = 64
+D_K = 128
 D_FF = 256
 
 # Estrutura

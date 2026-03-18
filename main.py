@@ -17,6 +17,8 @@ from attention import (
     project_qkv,
     scaled_dot_product_attention,
 )
+from feed_forward import initialize_ffn_weights, feed_forward
+from encoder import initialize_encoder_stack, encoder_stack
 
 
 def main():
@@ -39,19 +41,51 @@ def main():
     w_q, w_k, w_v = initialize_attention_weights(D_MODEL, D_K)
     q, k, v = project_qkv(x, x, x, w_q, w_k, w_v)
 
-    attention_output, debug_info = scaled_dot_product_attention(q, k, v, mask=None)
+    attention_output, attention_debug = scaled_dot_product_attention(q, k, v, mask=None)
 
     print("Shape de x:", x.shape)
     print("Shape de Q:", q.shape)
     print("Shape de K:", k.shape)
     print("Shape de V:", v.shape)
-    print("Shape dos scores:", debug_info["scores"].shape)
-    print("Shape dos scaled_scores:", debug_info["scaled_scores"].shape)
-    print("Shape dos attention_weights:", debug_info["attention_weights"].shape)
+    print("Shape dos scores:", attention_debug["scores"].shape)
+    print("Shape dos scaled_scores:", attention_debug["scaled_scores"].shape)
+    print("Shape dos attention_weights:", attention_debug["attention_weights"].shape)
     print("Shape da saída da atenção:", attention_output.shape)
 
     print("\nSoma das linhas dos attention_weights:")
-    print(np.sum(debug_info["attention_weights"], axis=-1))
+    print(np.sum(attention_debug["attention_weights"], axis=-1))
+
+    print("\n=== TESTE DA FEED-FORWARD NETWORK ===")
+
+    w1, b1, w2, b2 = initialize_ffn_weights(D_MODEL, D_FF)
+    ffn_output, ffn_debug = feed_forward(x, w1, b1, w2, b2)
+
+    print("Shape da entrada da FFN:", x.shape)
+    print("Shape após primeira linear:", ffn_debug["hidden_linear"].shape)
+    print("Shape após ReLU:", ffn_debug["hidden_relu"].shape)
+    print("Shape da saída da FFN:", ffn_output.shape)
+
+    print("\n=== TESTE DO ENCODER COMPLETO ===")
+
+    encoder_layers = initialize_encoder_stack(
+        n_layers=N_ENCODER_LAYERS,
+        d_model=D_MODEL,
+        d_k=D_K,
+        d_ff=D_FF,
+    )
+
+    encoder_output, encoder_debug = encoder_stack(x, encoder_layers)
+
+    print("Shape da entrada do encoder:", x.shape)
+    print("Número de camadas do encoder:", N_ENCODER_LAYERS)
+    print("Shape da saída final do encoder:", encoder_output.shape)
+
+    for layer_debug in encoder_debug:
+        layer_idx = layer_debug["layer_index"]
+        print(f"\nCamada {layer_idx}:")
+        print("  Shape de x_norm1:", layer_debug["x_norm1"].shape)
+        print("  Shape de ffn_output:", layer_debug["ffn_output"].shape)
+        print("  Shape de x_out:", layer_debug["x_out"].shape)
 
 
 if __name__ == "__main__":
