@@ -27,7 +27,11 @@ from masking import create_causal_mask
 from decoder import initialize_decoder_stack, decoder_stack
 from transformer import initialize_transformer_weights, transformer_forward
 from inference import create_token_embedding_table, tokens_to_embeddings, autoregressive_generate
-
+from visualization import (
+    plot_transformer_overview,
+    plot_transformer_blocks,
+    plot_transformer_inference_flow,
+)
 
 def main():
     print("=== LABORATÓRIO 4: TRANSFORMER COMPLETO ===")
@@ -170,6 +174,27 @@ def main():
         print(probs)
         print("Soma das probabilidades:", np.sum(probs))
 
+    print("\n=== VISUALIZAÇÕES DO TRANSFORMER ===")
+
+    plot_transformer_overview(
+        output_dir="outputs",
+        filename="transformer_overview.png",
+        show=True
+    )
+
+    plot_transformer_blocks(
+        output_dir="outputs",
+        filename="transformer_blocks.png",
+        show=True
+    )
+
+    plot_transformer_inference_flow(
+        output_dir="outputs",
+        filename="transformer_inference_flow.png",
+        show=True
+    )
+
+    print("Diagramas salvos em outputs/")
 
 if __name__ == "__main__":
     main()
