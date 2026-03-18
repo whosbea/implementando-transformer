@@ -11,6 +11,10 @@ from config import (
     SRC_SEQ_LEN,
     TGT_SEQ_LEN,
     VOCAB_SIZE,
+    VOCAB,
+    ID_TO_TOKEN,
+    START_TOKEN_ID,
+    EOS_TOKEN_ID,
 )
 from attention import (
     initialize_attention_weights,
@@ -21,6 +25,8 @@ from feed_forward import initialize_ffn_weights, feed_forward
 from encoder import initialize_encoder_stack, encoder_stack
 from masking import create_causal_mask
 from decoder import initialize_decoder_stack, decoder_stack
+from transformer import initialize_transformer_weights, transformer_forward
+from inference import create_token_embedding_table, tokens_to_embeddings, autoregressive_generate
 
 
 def main():
@@ -82,13 +88,6 @@ def main():
     print("Número de camadas do encoder:", N_ENCODER_LAYERS)
     print("Shape da saída final do encoder:", encoder_output.shape)
 
-    for layer_debug in encoder_debug:
-        layer_idx = layer_debug["layer_index"]
-        print(f"\nCamada {layer_idx}:")
-        print("  Shape de x_norm1:", layer_debug["x_norm1"].shape)
-        print("  Shape de ffn_output:", layer_debug["ffn_output"].shape)
-        print("  Shape de x_out:", layer_debug["x_out"].shape)
-
     print("\n=== TESTE DA MÁSCARA CAUSAL ===")
 
     causal_mask = create_causal_mask(TGT_SEQ_LEN)
@@ -116,21 +115,60 @@ def main():
     print("Número de camadas do decoder:", N_DECODER_LAYERS)
     print("Shape da saída final do decoder:", decoder_output.shape)
 
-    for layer_debug in decoder_debug:
-        layer_idx = layer_debug["layer_index"]
-        print(f"\nCamada do decoder {layer_idx}:")
-        print("  Shape da masked self-attention:", layer_debug["masked_self_attention_output"].shape)
-        print("  Shape de x_norm1:", layer_debug["x_norm1"].shape)
-        print("  Shape da cross-attention:", layer_debug["cross_attention_output"].shape)
-        print("  Shape de x_norm2:", layer_debug["x_norm2"].shape)
-        print("  Shape da FFN:", layer_debug["ffn_output"].shape)
-        print("  Shape de x_out:", layer_debug["x_out"].shape)
+    print("\n=== TESTE DO TRANSFORMER COMPLETO ===")
 
-        print("  Soma das linhas da masked self-attention:")
-        print(np.sum(layer_debug["masked_self_debug"]["attention_weights"], axis=-1))
+    weights = initialize_transformer_weights(
+        n_encoder_layers=N_ENCODER_LAYERS,
+        n_decoder_layers=N_DECODER_LAYERS,
+        d_model=D_MODEL,
+        d_k=D_K,
+        d_ff=D_FF,
+        vocab_size=VOCAB_SIZE,
+    )
 
-        print("  Soma das linhas da cross-attention:")
-        print(np.sum(layer_debug["cross_attention_debug"]["attention_weights"], axis=-1))
+    embedding_table = create_token_embedding_table(VOCAB_SIZE, D_MODEL)
+
+    src_token_ids = [VOCAB["eu"], VOCAB["gosto"], VOCAB["de"], VOCAB["pinguins"], VOCAB["muito"], VOCAB["fim"]]
+    tgt_token_ids = [START_TOKEN_ID, VOCAB["eu"], VOCAB["gosto"], VOCAB["de"], VOCAB["pinguins"]]
+
+    src_embeddings = tokens_to_embeddings(src_token_ids, embedding_table)
+    tgt_embeddings = tokens_to_embeddings(tgt_token_ids, embedding_table)
+
+    logits, transformer_debug = transformer_forward(
+        src_embeddings=src_embeddings,
+        tgt_embeddings=tgt_embeddings,
+        weights=weights,
+    )
+
+    print("Shape do src_embeddings:", src_embeddings.shape)
+    print("Shape do tgt_embeddings:", tgt_embeddings.shape)
+    print("Shape do encoder_output:", transformer_debug["encoder_output"].shape)
+    print("Shape do decoder_output:", transformer_debug["decoder_output"].shape)
+    print("Shape dos logits finais:", logits.shape)
+
+    print("\n=== TESTE DA INFERÊNCIA FIM A FIM ===")
+
+    generated_ids, all_probs, _ = autoregressive_generate(
+        src_token_ids=src_token_ids,
+        embedding_table=embedding_table,
+        weights=weights,
+        start_token_id=START_TOKEN_ID,
+        eos_token_id=EOS_TOKEN_ID,
+        max_len=8,
+    )
+
+    print("Sequência gerada (IDs):")
+    print(generated_ids)
+
+    generated_tokens = [ID_TO_TOKEN[token_id] for token_id in generated_ids]
+    print("\nSequência gerada (tokens):")
+    print(generated_tokens)
+
+    print("\nDistribuições de probabilidade por passo:")
+    for step, probs in enumerate(all_probs):
+        print(f"\nPasso {step}:")
+        print(probs)
+        print("Soma das probabilidades:", np.sum(probs))
 
 
 if __name__ == "__main__":
